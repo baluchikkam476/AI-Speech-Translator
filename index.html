@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Speech Translator</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            background: #0d0d0d;
+            font-family: "Poppins", sans-serif;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: auto;
+            margin-top: 40px;
+        }
+
+        h2 {
+            text-align: center;
+            font-weight: 600;
+            color: #00eaff;
+            margin-bottom: 30px;
+            text-shadow: 0 0 12px #00eaff88;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 25px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.12);
+            margin-bottom: 25px;
+        }
+
+        label {
+            font-size: 15px;
+            font-weight: 300;
+            color: #ddd;
+        }
+
+        input, select {
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #fff;
+            outline: none;
+        }
+
+        input:hover, select:hover {
+            border-color: #00eaff;
+            box-shadow: 0 0 8px #00eaff55;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            border: none;
+            border-radius: 10px;
+            background: #00eaff;
+            color: #000;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: 0.25s;
+        }
+
+        button:hover {
+            background: #00bcd4;
+            box-shadow: 0 0 15px #00eaffaa;
+        }
+
+        .output-box {
+            background: #111;
+            border: 1px solid #222;
+            padding: 15px;
+            border-radius: 12px;
+            min-height: 60px;
+            margin-top: 10px;
+            color: #9efcff;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+
+        .section-title {
+            font-weight: 500;
+            color: #00eaff;
+            margin-top: 10px;
+            text-shadow: 0 0 10px #00eaff66;
+        }
+
+        .separator {
+            text-align:center;
+            color:#aaa;
+            margin:14px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>🎤 AI Speech Translator</h2>
+
+        <!-- Input Card -->
+        <div class="card">
+
+            <label>YouTube Video Link</label>
+            <input type="text" id="youtubeLink" placeholder="Paste YouTube URL">
+
+            <div class="separator">— OR —</div>
+
+            <label>Upload Audio File</label>
+            <input type="file" id="audioFile">
+
+            <label style="margin-top:15px;">Select Target Language</label>
+            <select id="langSelect">
+                <option value="hi">Hindi</option>
+                <option value="te">Telugu</option>
+                <option value="ta">Tamil</option>
+                <option value="kn">Kannada</option>
+                <option value="ml">Malayalam</option>
+                <option value="bn">Bengali</option>
+                <option value="mr">Marathi</option>
+                <option value="gu">Gujarati</option>
+                <option value="pa">Punjabi</option>
+                <option value="or">Odia</option>
+                <option value="ja">Japanese</option>
+                <option value="de">German</option>
+            </select>
+
+            <button onclick="startProcess()">Translate</button>
+        </div>
+
+        <!-- Output Card -->
+        <div class="card">
+            <div class="section-title">Transcription</div>
+            <div id="transcription" class="output-box"></div>
+
+            <div class="section-title" style="margin-top:25px;">Translation</div>
+            <div id="translation" class="output-box"></div>
+        </div>
+
+    </div>
+
+<script>
+
+// Master function
+function startProcess() {
+    const youtubeLink = document.getElementById("youtubeLink").value.trim();
+    const audio = document.getElementById("audioFile").files[0];
+
+    document.getElementById("transcription").innerText = "";
+    document.getElementById("translation").innerText = "";
+
+    if (youtubeLink !== "") {
+        processYouTubeLink(youtubeLink);
+    } else if (audio) {
+        uploadAudio();
+    } else {
+        alert("Please upload a file or paste a YouTube link.");
+    }
+}
+
+// Handle YouTube
+function processYouTubeLink(link) {
+    document.getElementById("transcription").innerText = "⏳ Extracting YouTube audio...";
+
+    fetch("http://127.0.0.1:5000/youtube_to_text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: link })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) {
+            document.getElementById("transcription").innerText = "⚠ " + data.error;
+            return;
+        }
+
+        document.getElementById("transcription").innerText = data.transcription;
+        translateText(data.transcription);
+    })
+    .catch(err => {
+        console.error(err);
+        document.getElementById("transcription").innerText = "⚠ Error fetching YouTube audio";
+    });
+}
+
+// Handle File Upload
+function uploadAudio() {
+    const file = document.getElementById('audioFile').files[0];
+
+    let formData = new FormData();
+    formData.append("audio", file);
+
+    document.getElementById("transcription").innerText = "⏳ Transcribing audio...";
+
+    fetch("http://127.0.0.1:5000/transcribe", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.transcription) {
+            document.getElementById("transcription").innerText = "⚠ Transcription failed!";
+            return;
+        }
+
+        document.getElementById("transcription").innerText = data.transcription;
+        translateText(data.transcription);
+    })
+    .catch(err => {
+        console.error(err);
+        document.getElementById("transcription").innerText = "⚠ Request failed!";
+    });
+}
+
+// Handle Translation
+function translateText(text) {
+    const targetLang = document.getElementById("langSelect").value;
+
+    document.getElementById("translation").innerText = "⏳ Translating...";
+
+    fetch("http://127.0.0.1:5000/translate_text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text, target_lang: targetLang })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("translation").innerText =
+            data.translated_text || "⚠ Translation failed!";
+    })
+    .catch(err => {
+        console.error(err);
+        document.getElementById("translation").innerText = "⚠ Translation error!";
+    });
+}
+
+</script>
+
+</body>
+</html>
